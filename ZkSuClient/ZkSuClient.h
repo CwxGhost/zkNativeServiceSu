@@ -5,7 +5,7 @@ namespace android {
 class ZkSuClient {
 
 public:
-	void sendCmd(char* n);
+	void sendCmd(char* cmd, char* key);
 private:
 	static const void getService();
 };

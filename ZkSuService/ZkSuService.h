@@ -11,7 +11,8 @@ class ZkSuService: public BBinder {
 	mutable Mutex mLock;
 	int32_t mNextConnId;
 private:
-	void executeCMD(const char *cmd);
+	void executeCMD(const char *cmd, char** res);
+	bool checkKey(const char* key);
 public:
 	static int instantiate();
 	ZkSuService();

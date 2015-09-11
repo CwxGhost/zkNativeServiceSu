@@ -2,17 +2,26 @@
 #include <binder/IPCThreadState.h>
 #include <utils/Log.h>
 #include <cutils/log.h>
+#include <unistd.h>
 #include "ZkSuClient.h"
+
+static void usage() {
+	printf("Usage: zksuclient [-options] [args...]\n"
+			"   -k   -   the md5 keys\n"
+			"   -c   -   the su cmds(-c 'cmds')\n"
+			"   -h   -   print help info.\n");
+}
 
 namespace android {
 sp<IBinder> binder;
-void ZkSuClient::sendCmd(char* cmd) {
+void ZkSuClient::sendCmd(char* cmd, char* key) {
 	getService();
 	Parcel data, reply;
 	const char* answer;
-	data.writeInt32(getpid());
+	data.writeInt32(getuid());
 	data.writeCString(cmd);
-	ALOGE("ZkSuService::create remote()->transact()/n");
+	data.writeCString(key);
+	ALOGD("ZkSuService::create remote()->transact()\n");
 	binder->transact(0, data, &reply);
 	answer = reply.readCString();
 	printf("%s\n", answer);
@@ -22,9 +31,9 @@ void ZkSuClient::sendCmd(char* cmd) {
 const void ZkSuClient::getService() {
 	sp < IServiceManager > sm = defaultServiceManager();
 	binder = sm->getService(String16("com.zhaiker.su"));
-	ALOGE("ZkSuClient::getZkSuService %p/n", sm.get());
+	ALOGD("ZkSuClient::getZkSuService %p\n", sm.get());
 	if (binder == 0) {
-		ALOGW("ZkSuService not published, waiting...");
+		ALOGD("ZkSuService not published, waiting...");
 		return;
 	}
 }
@@ -34,20 +43,44 @@ const void ZkSuClient::getService() {
 
 using namespace android;
 
+bool checkKey(char* key) {
+	if (getuid() == 0) {
+		return true;
+	}
+	return true;
+}
+
 int main(int argc, char** argv) {
 	int c = 0;
-	if (argc >= 2) {
-		int i;
-		char buf[1024] = { '\0' };  //数据传送的缓冲区
-		for (i = 1; i < argc; i++) {
-			strcat(buf, argv[i]);
-			strcat(buf, " ");
+	int ch;
+	bool hascmd = false;
+	char* cmd;
+	char* key = "nokey";
+	while ((ch = getopt(argc, argv, "k:c:h")) != -1) {
+		switch (ch) {
+		case 'k':
+			key = optarg;
+			break;
+		case 'c':
+			cmd = optarg;
+			hascmd = true;
+			break;
+		case '?':
+		case 'h':
+		default:
+			usage();
+			return 1;
 		}
-		strcat(buf, "\0");
+	}
+	if (argc == 1) {
+		usage();
+		return 1;
+	}
+	if (hascmd) {
 		ZkSuClient* p = new ZkSuClient();
-		p->sendCmd(buf);
+		p->sendCmd(cmd, key);
 	} else {
-		printf("please input cmds\n");
+		usage();
 	}
 	return 0;
 }
